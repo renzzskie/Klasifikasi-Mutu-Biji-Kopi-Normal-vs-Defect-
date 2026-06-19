@@ -1,150 +1,206 @@
-# JUDUL PROJECT PCD
+# Klasifikasi Mutu Biji Kopi (Normal vs Defect) Menggunakan Ekstraksi Fitur GLCM serta Perbandingan Metode KNN, SVM, dan Random Forest
+
 ## Nama Anggota
-###  siA : F1D000000
-###  siB : F1D000000
-###  siC : F1D000000
+- RENDY WAHYU ISLAMI : F1D02410133
+- MUHAMMAD AKBAR : F1D02410075
+- WIMAR ARYASMARTA PRAKASA : F1D02410026
+- M. ISMAIL CAHYADI : F1D02410120
 
-# JANGAN LUPA KASI MARKDOWN YA
-# Project Overview
-Pada project PCD ini, Anda akan melakukan experiment kalsifikasi dengan menggunakan dataset yang telah Anda siapkan sebelumnya. Hal ini bertujuan untuk:
-- Menguji kemampuan Anda dalam mengimplemetasikan teknik pengolahan citra digital untuk melakukan klasifikasi citra.
-- Memilih tahapan preprocessing yang tepat sesuai dengan karakteristik data yang ada.
+## Project Overview
+Project ini bertujuan untuk melakukan klasifikasi mutu biji kopi ke dalam dua kelas, yaitu normal (premium) dan defect, menggunakan pendekatan pengolahan citra digital secara manual. Seluruh tahapan preprocessing, mulai dari operasi spasial, deteksi tepi, hingga thresholding, diimplementasikan tanpa menggunakan fungsi bawaan OpenCV agar pemahaman terhadap konsep dasar pengolahan citra benar-benar teruji. Fokus utama project ini adalah pada ketepatan pemilihan tahapan preprocessing dan proses ekstraksi fitur, bukan pada nilai akurasi akhir model.
 
-Pemilihan preprocessing haruslah menggunakan preprocessing yang telah Anda lakukan selama praktikum Modul 1 - 5. Setelah itu, Anda akan melakukan feature extraction dan juga pembuatan model klasifikasi.
-Perlu di perhatikan bahwa yang menjadi acuan pada project ini adalah tepatnya pemilihan `preprocessing` dan proses `extraction feature` yang dilakukan. Jadi, Anda tidak perlu khawatir dengan hasil akhir akurasi yang mungkin tidak bagus. Selain itu, untuk melihat pemahaman Anda dalam menganalisis, Anda akan melakukan eksperimen sebanyak 3 kali percobaan dengan notebook yang berbeda (format notebook terdapat pada template). Pada setiap percobaannya, Anda diharuskan melakukan improvement pada setiap preprocessing yang telah Anda buat sebelumnya. Anda dapat melakukan improvement dengan cara menyesuaikan jumlah preprocessing pada setiap percobaan. Misalnya, project Anda akan menggunakan total 5 Preprocessing (pre1, pre2, pre3, pre4, pre 5), maka:
-- Percobaan Pertama (2 Preprocessing menggunakan pre1, pre2)
-- Percobaan Kedua (4 Preprocessing menggunakan pre1, pre2, pre3, pre4)
-- Percobaan Ketiga (5 Preprocessing menggunakan pre1, pre2, pre3, pre4, pre5)
+Sesuai arahan modul, dilakukan tiga kali percobaan dengan kombinasi preprocessing yang berbeda untuk melihat bagaimana setiap kombinasi mempengaruhi hasil ekstraksi fitur dan performa klasifikasi:
+- Percobaan 1: prepro1 (Median Filter + Normalisasi)
+- Percobaan 2: prepro1, prepro2 (Histogram Equalization + Sharpening)
+- Percobaan 3: prepro1, prepro2, prepro3 (Smoothing Mean Filter + Edge Detection Sobel + Thresholding)
 
-Lalu dari setiap percobaan, lihatlah bagaimana perbedaan akurasinya untuk setiap model, Random Forest berapa, SVM berapa, KNN berapa. Berikut ini adalah Tahapan Umum yang digunakan dalam Machine Learning.
-
-~ SELAMAT DATANG DI LAB 1 ~
-
-# IMPORT LIBRARY
-Anda mengimport library yang dibutuhkan di cell code ini, Anda tidak harus mengikuti dan menggunakan seluruh library yang ada pada template. Library pada template adalah library umum yang sekiranya sering digunakan pada Machine Learning dalam konteks klasifikasi, jadi gunakan library yang diperlukan saja ya.
-``` python
-  import library
-  import library as lib
-  import library.library as lib
-  from library.library_yang_saya_butuhkan import library, library
+## Import Library
+Library yang digunakan pada project ini meliputi:
+```python
+import os
+import numpy as np
+import cv2 as cv
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, confusion_matrix
 ```
-# Load Data
-Setelah import library, dilanjutkan dengan tahapan membaca dataset. Pada praktikum modul 1 - 5 Anda pernah membaca beberapa image ke dalam code. Pada project ini, Anda tidak hanya akan membaca 1 atau 2 image saja, tetapi ratusan bahkan ribuan image pada dataset yang Anda gunakan. Bukan hanya image, tapi Anda juga akan berurusan dengan label setiap image, jadi sesuaikan code pada template dengan dataset label (label adalah nama setiap folder pada dataset Anda yang berisi image) yang Anda miliki. Pertama-tama lakukanlah data loading (baca dataset) beserta labelnya, Anda bisa melakukan penyeragaman ukuran dari dataset dengan resize, jika ukuran setiap image berbeda pada datset Anda. Misalnya ada yang 100x200, 300x100 maka Anda harus mengubahnya ke ukuran yang sama misalnya 100x100 atau 150x150. Sekedar informasi semakin besar ukuran setiap image, maka proses loadingnya pun akan semakin lama, jadi usahakan juga ukuran image rendah, CMIIW~
-``` python
-  data = []
-  labels = []
-  file_name = []
+`cv2` hanya digunakan untuk membaca file gambar (`cv.imread`) dan konversi ruang warna untuk keperluan visualisasi, sedangkan seluruh proses preprocessing inti dibuat manual menggunakan numpy.
+
+## Load Data
+Dataset dibaca dari folder `dataset` yang berisi dua subfolder sesuai label, yaitu `defect` dan `premium`. Setiap gambar dibaca, dikonversi ke grayscale, lalu disimpan ke dalam list bersama label dan nama filenya.
+```python
+data = []
+labels = []
+file_name = []
+
+for label in os.listdir("dataset"):
+    folder_path = os.path.join("dataset", label)
+    for fname in os.listdir(folder_path):
+        img_path = os.path.join(folder_path, fname)
+        img = cv.imread(img_path, cv.IMREAD_GRAYSCALE)
+        data.append(img)
+        labels.append(label)
+        file_name.append(fname)
+
+labels = np.array(labels)
+print(f"Jumlah data: {len(data)}")
 ```
-## Data Understanding
-Selanjutnya, Anda diminta untuk melakukan eksplorasi data untuk memahami karakteristik data yang digunakan. Anda dapat menampilkan jumlah data, karakteristik data (kondisi background, noise, pencahyaan, dll), distribusi data, sampel data, dan lainnya. Hal ini bertujuan untuk memahami data yang akan digunakan dalam proses klasifikasi, sehingga dapat memilih teknik preprocessing yang tepat ataupun penanganan jika terdapat data yang tidak seimbang. Berikut ini contohnya:
-``` python
-  jumlah.data = []
-  jumlah.labels = []
-  print(Output: file_name)
+
+### Data Understanding
+Pada tahap ini dilakukan eksplorasi untuk memahami karakteristik dataset, seperti jumlah data per kelas, kondisi pencahayaan, serta variasi ukuran gambar. Pemahaman ini menjadi dasar pemilihan teknik preprocessing yang tepat, misalnya kebutuhan resize karena ukuran gambar antar sampel tidak seragam, serta kebutuhan filter penghalus karena adanya noise pada gambar hasil pemotretan.
+
+## Data Preparation
+
+### Data Augmentation
+Karena jumlah data per kelas berada pada rentang yang mencukupi, augmentasi data bersifat opsional dan hanya diterapkan jika diperlukan untuk menyeimbangkan jumlah sampel antar kelas.
+
+### Preprocessing
+Seluruh fungsi preprocessing dibuat secara manual menggunakan numpy, tanpa memanfaatkan fungsi siap pakai dari OpenCV.
+
+**Kernel yang digunakan**
+
+```python
+kernelSharpening = np.array([
+    [1/9, 1/9, 1/9],
+    [1/9, 8/9, 1/9],
+    [1/9, 1/9, 1/9]
+])
 ```
-Output: Contoh Visualisasi Distribusi Data: 
+Kernel untuk mempertajam gambar. Nilai tengah 8/9 yang lebih besar dari sekitarnya membuat piksel pusat lebih dominan sehingga tepi dan detail gambar terlihat lebih tajam.
 
-![image](https://github.com/user-attachments/assets/bcf4e18c-d6a5-4627-a4d3-c4a2fdb35e8c)
-
-Output: Contoh Sample Data:
-![image](https://github.com/user-attachments/assets/0084d31f-386e-49f9-9de5-4863ec4d73de)
-
-# Data Preparation
-## Data Augmentation
-Pada tahapan ini, Anda diwajibkan untuk menerapkan teknik image augmentation untuk menambah jumlah data, HANYA JIKA data Anda berada di bawah rentang 70-100. Anda bisa melakukan image Augmentation dengan teknik yang ada pada Modul 1.
-``` python
-  augmented.data = []
-  augmented.labels = []
-  print(Output: file_name)
+```python
+sobelX = np.array([[-1,0,1],[-2,0,2],[-1,0,1]])
+sobelY = np.array([[1,2,1],[0,0,0],[-1,-2,-1]])
 ```
-Output: Contoh Image Augmentation
-![image](https://github.com/user-attachments/assets/9ea656a7-a69c-47fa-98fc-2a598b81c3a0)
+Dua kernel Sobel untuk mendeteksi tepi. sobelX mendeteksi perubahan intensitas arah horizontal, sedangkan sobelY mendeteksi perubahan arah vertikal.
 
-## Preprocessing
-Selanjutnya, ini dia tahapan paling krusial. Anda dapat melakukan teknik preprocessing yang Anda anggap perlu. Jelaskan alasan Anda menggunakan teknik tersebut, Anda wajib menggunakan preprocessing yang ada pada modul-modul yang telah Anda pelajari sebelumnya selama praktikum. Jika Anda merasa preprocessing yang ada pada praktikum tidak sesuai, maka silahkan diskusikan dengan Asisten masing" untuk mendapatkan pencerahan.
-``` python
-def prepro1():
-    pass
-
-def prepro2():
-    pass
-
-def prepro3():
-    pass
+```python
+prewittX = np.array([[-1,0,1],[-1,0,1],[-1,0,1]])
+prewittY = np.array([[1,1,1],[0,0,0],[-1,-1,-1]])
 ```
+Dua kernel Prewitt untuk mendeteksi tepi, mirip dengan Sobel namun tanpa pembobotan lebih besar pada baris atau kolom tengah, sehingga hasilnya sedikit lebih sensitif terhadap noise.
+
+```python
+robertsX = np.array([[1,0],[0,-1]])
+robertsY = np.array([[0,1],[-1,0]])
+```
+Dua kernel Roberts berukuran dua kali dua untuk mendeteksi tepi dengan membandingkan piksel secara diagonal. Lebih cepat dihitung namun lebih rentan terhadap noise dibanding Sobel maupun Prewitt.
+
+**Fungsi dasar**
+
+`normalisasi(image)` melakukan peregangan kontras manual agar nilai piksel tersebar merata dari 0 sampai 255, dengan piksel paling gelap menjadi 0 dan paling terang menjadi 255.
+
+`histogram_equalization(image)` menghitung histogram gambar secara manual, menghitung Cumulative Distribution Function (CDF), lalu menormalisasinya ke rentang 0-255 sebagai tabel pemetaan nilai piksel baru agar distribusi intensitas menjadi lebih merata.
+
+**Fungsi spasial**
+
+`convolution(img, kernel)` melakukan operasi konvolusi manual antara gambar dan kernel, dengan padding agar ukuran output sama dengan input.
+
+`edge(img, kernelx, kernely)` mendeteksi tepi dengan menggabungkan hasil konvolusi kernel sumbu x dan y, lalu menjumlahkan nilai absolut keduanya untuk mendapatkan kekuatan tepi di setiap piksel.
+
+`filter(img, size, mode)` memiliki tiga mode:
+- `mean`: menghitung rata-rata piksel dalam area kernel untuk menghaluskan gambar.
+- `median`: mengurutkan nilai piksel menggunakan bubble sort manual lalu mengambil nilai tengahnya, efektif menghilangkan noise tanpa mengaburkan tepi gambar.
+- `modus`: menghitung nilai piksel yang paling sering muncul dalam area kernel menggunakan dictionary, cocok untuk menghilangkan noise berupa nilai piksel acak.
+
+`thresholding(image, n)` mengubah gambar grayscale menjadi gambar biner berdasarkan nilai ambang n, memisahkan objek dari latar belakang berdasarkan tingkat kecerahan.
+
+`resize(image, target_size)` mengubah ukuran gambar ke dimensi target secara manual menggunakan metode nearest neighbor, memetakan setiap piksel gambar baru ke posisi piksel terdekat di gambar asli.
+
+**Pipeline preprocessing per eksperimen**
+
+```python
+def prepro1(image):
+    img_median = filter(image, 3, 'median')
+    img_norm = normalisasi(img_median)
+    return img_norm
+
+def prepro2(image):
+    img_he = histogram_equalization(image)
+    img_sharpened = convolution(img_he, kernelSharpening)
+    return np.clip(img_sharpened, 0, 255).astype(np.uint8)
+
+def prepro3(image):
+    img_smooth = filter(image, 3, 'mean')
+    img_edge = edge(img_smooth, sobelX, sobelY)
+    img_tresh = thresholding(img_edge, 15)
+    return img_tresh
+```
+
+- `prepro1` menghaluskan gambar dengan median filter untuk menghilangkan noise, lalu menormalisasi hasilnya.
+- `prepro2` meratakan distribusi intensitas dengan histogram equalization agar detail di area gelap maupun terang lebih terlihat, lalu mempertajam tepi melalui konvolusi dengan kernelSharpening.
+- `prepro3` menghaluskan gambar dengan mean filter sebelum deteksi tepi, menerapkan deteksi tepi Sobel, lalu mengubahnya menjadi gambar biner melalui thresholding agar hanya informasi tepi biji kopi yang ditampilkan.
+
+Pemanggilan pipeline pada dataset:
+```python
+dataPreprocessed = []
+for i in range(len(data)):
+    img_resized = resize(data[i], target_size=(256, 256))
+    img_final = prepro3(img_resized)
+    dataPreprocessed.append(img_final)
+
+dataPreprocessed = np.array(dataPreprocessed)
+print(f"Selesai memproses {len(dataPreprocessed)} gambar.")
+```
+Setiap gambar diseragamkan ukurannya menjadi 256x256 piksel menggunakan fungsi resize manual, lalu diproses melalui pipeline eksperimen yang dipilih sebelum disimpan ke dalam array numpy untuk tahap ekstraksi fitur.
+
 ## Feature Extraction
-Pada tahapan ini, Anda diminta untuk melakukan ekstraksi fitur dengan metode Gray Level Co-occurrence Matrix (GLCM). Dengan GLCM sudut 0, 45, 90, dan 135 derajat, simetris, dan lakukan uji coba dengan distance 1-5. Anda dapat menghitung nilai dari beberapa fitur berikut:
-
-- Contrast
-- Dissimilarity
-- Homogeneity
-- Energy
-- Correlation
-- Entropy
-- ASM
-``` python
+Ekstraksi fitur dilakukan menggunakan Gray Level Co-occurrence Matrix (GLCM) pada sudut 0, 45, 90, dan 135 derajat secara simetris, dengan uji coba pada distance 1 sampai 5. Fitur yang dihitung meliputi Contrast, Dissimilarity, Homogeneity, Energy, Correlation, Entropy, dan ASM.
+```python
 def glcm(image, derajat):
- ...........
+    ...
 ```
 
 ## Feature Selection
-Pada tahap ini, Anda diminta untuk melakukan seleksi fitur. Anda dapat menggunakan teknik seleksi fitur seperti correlation, PCA, atau teknik seleksi fitur lain yang Anda ketahui. NAH PADA TEMPLATE CODE FEATURE SELECTION MENGGUNAKAN CORRELATION YGY.
-``` python
+Seleksi fitur dilakukan menggunakan correlation matrix terhadap fitur hasil ekstraksi GLCM, untuk mengidentifikasi dan menghilangkan fitur yang saling berkorelasi tinggi sehingga mengurangi redundansi.
+```python
 correlation = hasilEkstrak.drop(columns=['Label','Filename']).corr()
-......
 ```
 
 ## Splitting Data
-Pada tahap ini, Anda diminta untuk membagi data menjadi data training dan data testing. Anda dapat menggunakan perbandingan 80:20 atau 70:30 atau 90:10.
-``` python
-Dataset, Dataset, Dataset, Dataset = train_test_split(Dataset, y, test_size=0.2, random_state=42)
-print(Dataset.shape)
-print(Dataset.shape)
+Data dibagi menjadi data training dan data testing dengan perbandingan 80:20.
+```python
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+print(X_train.shape)
+print(X_test.shape)
 ```
 
 ## Normalization
-Pada tahap ini, Anda diminta untuk melakukan normalisasi data. Anda dapat menggunakan teknik normalisasi standarization atau min-max normalization.
-``` python
-Dataset = (Dataset - Dataset.mean()) / Dataset.std()
-Dataset = (Dataset - Dataset.mean()) / Dataset.std()
-```
-
-# Modeling
-Pada tahap ini, Anda diminta untuk membuat model klasifikasi. Berikut merupakan model yang dapat digunakan:
-- K-Nearest Neighbors (KNN)
-- Support Vector Machine (SVM)
-- Random Forest
-
-Gunakan akurasi sebagai metrik dalam menampilkan hasil klasifikasi.
+Normalisasi data fitur dilakukan menggunakan teknik standarization (z-score) agar setiap fitur memiliki skala yang setara sebelum masuk ke tahap modeling.
 ```python
-# Train Random Forest Classifier
-rf.fit(dataset, dataset)
-# Train SVM Classifier
-svm.fit(dataset, dataset)
-# Train KNN Classifier
-knn.fit(dataset, dataset)
-
-def inidiaClassificationReport(dataset, dataset):
-	print(classification_report(dataset, dataset))
-
-```
-Output: Contoh Classsification Report
-|               | Accuracy | Precision | Recall   | F1-Score |
-| ------------- | -------- | --------- | -------- | -------- |
-| KNN           | 0.948667 | 0.948664  | 0.948667 | 0.948504 |
-| SVM           | 0.976333 | 0.976319  | 0.976333 | 0.976333 |
-| Random Forest | 0.959667 | 0.959822  | 0.959667 | 0.959615 |
-
-# Evaluation
-Pada bagian ini, Anda perlu mengevaluasi model klasifikasi yang telah Anda buat dengan menampilkan Confusion Matrix, dan Clasification Report: Accuracy, Precision, Recall, F1 Score. **Jelaskan hasil evaluasi yang Anda dapatkan dan berikan analisis mengenai hasil evaluasi tersebut**.
-
-``` python
-
-def plot_confusion_matrix(dataset, dataset, title):
-  print(confusion_matrix)
+X_train = (X_train - X_train.mean()) / X_train.std()
+X_test = (X_test - X_train.mean()) / X_train.std()
 ```
 
-Output: Contoh Confusion Matrix
-![image](https://github.com/user-attachments/assets/aec4ac9c-e687-4354-b02d-833caf26db6b)
+## Modeling
+Tiga model klasifikasi dilatih menggunakan fitur GLCM yang telah diseleksi dan dinormalisasi, yaitu Random Forest, SVM, dan KNN.
+```python
+rf.fit(X_train, y_train)
+svm.fit(X_train, y_train)
+knn.fit(X_train, y_train)
 
+def generateClassificationReport(y_true, y_pred):
+    print(classification_report(y_true, y_pred))
+```
+Random Forest membangun kumpulan pohon keputusan yang secara kolektif menentukan kelas mutu biji kopi. SVM mencari hyperplane dengan margin terbesar untuk memisahkan kelas defect dan premium. KNN tidak membangun model, melainkan menyimpan seluruh data latih dan mencari k tetangga terdekat di ruang fitur saat melakukan prediksi.
 
+Setiap model dievaluasi dua kali, pertama pada training set untuk melihat seberapa baik model mempelajari data latih, kemudian pada testing set untuk mengukur kemampuan generalisasinya terhadap data baru yang belum pernah dilihat sebelumnya.
+
+## Evaluation
+
+| Model         | Akurasi Training | Akurasi Testing |
+| ------------- | ----------------- | ---------------- |
+| Random Forest | 0.95               | 0.75              |
+| SVM           | 0.8125             | 0.80              |
+| KNN           | 0.7875             | 0.825             |
+
+**Random Forest** menunjukkan akurasi training yang sangat tinggi (0.95) namun turun cukup signifikan pada testing (0.75). Selisih yang besar ini mengindikasikan model mengalami overfitting, yaitu model terlalu menghafal pola spesifik dari data latih sehingga kurang optimal saat menghadapi data baru. Pada confusion matrix testing, kesalahan klasifikasi masih cukup banyak terjadi pada kelas defect.
+
+**SVM** menunjukkan akurasi training (0.8125) dan testing (0.80) yang relatif konsisten dengan selisih kecil. Hal ini menunjukkan SVM memiliki kemampuan generalisasi yang baik, tidak overfitting maupun underfitting, karena performanya stabil antara data latih dan data baru.
+
+**KNN** justru menunjukkan akurasi testing (0.825) yang lebih tinggi dibanding training (0.7875). Pola ini wajar karena KNN menggunakan nilai k lebih dari satu, sehingga prediksi pada data latih juga mempertimbangkan tetangga dari kelas lain alih-alih hanya menghafal dirinya sendiri. Hasil ini menunjukkan KNN tidak mengalami overfitting dan mampu menggeneralisasi dengan baik pada data uji.
+
+**Kesimpulan sementara:** dari ketiga model yang diuji pada eksperimen ini, SVM dan KNN menunjukkan kemampuan generalisasi yang lebih baik dibanding Random Forest, yang justru menunjukkan tanda-tanda overfitting pada kombinasi preprocessing dan fitur yang digunakan.
